@@ -72,6 +72,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <label>Sensitivity<input id="sens" type="range" min="1" max="60" value="12"></label>
   <label>Min lap <span id="mlv">1.0s</span><input id="ml" type="range" min="3" max="60" value="10"></label>
   <label style="flex:1 1 100%"><input type="checkbox" id="dir" checked style="flex:none">Count left → right passes only</label>
+  <label style="flex:1 1 100%"><input type="checkbox" id="pho" checked style="flex:none">Take finish photo</label>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="75"></label>
   <label>Race laps (0 = open)<input id="rl" type="number" min="0" max="999" value="10" style="max-width:70px"></label>
   <div class="btns"><button id="arm" class="pri">Arm race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button></div>
@@ -100,11 +101,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   var $=function(i){return document.getElementById(i)};
   var video=$('v'),cv=$('c'),ctx=cv.getContext('2d',{willReadFrequently:true});
   var W=160,H=0,prev=null,lastHud=0,DIFF=28,BAND=2,minLap=1000;
-  var Z={},armed=false,winner=null,events=[],raceDone=false,saved=false,races=[];
+  var Z={},armed=false,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
   var soundOn=true,ac=null,toneTimer=null,TONE={A:600,B:900},WAVE={A:'triangle',B:'square'};
   var KEY='lapTimer.races.v1',curName='lap-log.csv';
 
-  function fresh(){return {tL:0,tR:0,startT:null,lastT:null,active:false,cool:0,laps:[],best:null,running:false,finished:false,finishMs:null,finishAt:null}}
+  function fresh(){return {hist:[],tL:0,tR:0,startT:null,lastT:null,active:false,cool:0,laps:[],best:null,running:false,finished:false,finishMs:null,finishAt:null}}
   Z.A=fresh();Z.B=fresh();
   function total(){var v=parseInt($('rl').value,10);return isNaN(v)||v<0?0:v}
   function p(n,l){return String(n).padStart(l||2,'0')}
@@ -114,7 +115,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
 
   /* storage */
   function load(){try{var s=localStorage.getItem(KEY);races=s?JSON.parse(s):[]}catch(e){races=[]}}
-  function store(){try{localStorage.setItem(KEY,JSON.stringify(races.slice(0,40)))}catch(e){}}
+  function store(){
+    var list=races.slice(0,40).map(function(r,i){if(i<12||!r.photo)return r;var c=Object.assign({},r);delete c.photo;return c});
+    try{localStorage.setItem(KEY,JSON.stringify(list))}
+    catch(e){try{localStorage.setItem(KEY,JSON.stringify(list.map(function(r,i){if(i<3||!r.photo)return r;var c=Object.assign({},r);delete c.photo;return c})))}catch(_){}}
+  }
   load();
 
   /* audio */
@@ -150,6 +155,16 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     ctx.drawImage(video,sx,sy,sw,sh,0,0,W,H);return true;
   }
   function gray(img){var g=new Uint8Array(W*H),d=img.data;for(var i=0,j=0;j<d.length;i++,j+=4){g[i]=(d[j]*77+d[j+1]*150+d[j+2]*29)>>8}return g}
+  function centroid(g,c0,c1,y0,y1){
+    var n=0,sx=0;
+    for(var x=c0;x<=c1;x++){for(var y=y0;y<y1;y++){if(Math.abs(g[y*W+x]-prev[y*W+x])>DIFF){n++;sx+=x}}}
+    return {n:n,cx:n?sx/n:0};
+  }
+  function dirOK(z,now){
+    var h=z.hist;
+    if(h.length>=2)return h[h.length-1].cx-h[0].cx>0.5;   // motion centre moving right
+    return (now-z.tL<500)&&!(now-z.tR<500&&z.tR<z.tL);     // fallback: strips
+  }
   function ratio(g,col,y0,y1){
     var c=0,n=0;
     for(var x=col-BAND;x<=col+BAND;x++){if(x<0||x>=W)continue;for(var y=y0;y<y1;y++){n++;if(Math.abs(g[y*W+x]-prev[y*W+x])>DIFF)c++}}
@@ -184,7 +199,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       if(T&&n>=T){
         z.finished=true;z.running=false;z.finishMs=now-z.startT;z.finishAt=now;
         $('t'+k).textContent='DONE '+fmt(z.finishMs);
-        if(!winner)winner=k;
+        if(!winner){winner=k;if($('pho').checked)snap(k,z.finishMs)}
         done=true;
       }
       if(done)finishTone(k);else lapTone(k);
@@ -200,6 +215,28 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     c.sort(function(a,b){return Z[b].laps.length-Z[a].laps.length||Z[a].lastT-Z[b].lastT});
     return c[0];
   }
+  function snap(k,ms){
+    try{
+      var vw=video.videoWidth,vh=video.videoHeight,st=$('stage'),dr=st.clientWidth/st.clientHeight,sx=0,sy=0,sw=vw,sh=vh;
+      if(vw/vh>dr){sw=vh*dr;sx=(vw-sw)/2}else{sh=vw/dr;sy=(vh-sh)/2}
+      var c=document.createElement('canvas');c.width=540;c.height=Math.round(540/dr);
+      var x=c.getContext('2d');x.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+      var lx=c.width*parseInt($('lp').value,10)/100;
+      x.strokeStyle='rgba(34,211,238,.9)';x.lineWidth=2;
+      x.beginPath();x.moveTo(lx,0);x.lineTo(lx,c.height);x.moveTo(0,c.height/2);x.lineTo(c.width,c.height/2);x.stroke();
+      x.fillStyle='#000';x.fillRect(0,c.height-34,c.width,34);
+      x.fillStyle='#facc15';x.font='bold 20px system-ui,sans-serif';
+      x.fillText('FINISH  Lane '+k+'  '+fmt(ms)+'  '+clock(new Date()),10,c.height-10);
+      photo=c.toDataURL('image/jpeg',0.7);
+    }catch(e){photo=null}
+  }
+  function sharePhoto(url,name){
+    fetch(url).then(function(r){return r.blob()}).then(function(b){
+      var f=new File([b],name,{type:'image/jpeg'});
+      if(navigator.canShare&&navigator.canShare({files:[f]}))return navigator.share({files:[f],title:name});
+      var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();
+    }).catch(function(){});
+  }
   function laneStats(k){
     var z=Z[k],n=z.laps.length,sum=z.laps.reduce(function(s,l){return s+l.ms},0);
     return {n:n,total:laneTotal(k),best:z.best,avg:n?sum/n:null,done:z.finishMs!==null};
@@ -212,7 +249,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     });
     return rows.join('\n');
   }
-  function buildRace(){return {id:Date.now(),ts:new Date().toISOString(),target:total(),winner:winner,A:laneStats('A'),B:laneStats('B'),csv:makeCSV()}}
+  function buildRace(){return {id:Date.now(),ts:new Date().toISOString(),target:total(),winner:winner,A:laneStats('A'),B:laneStats('B'),csv:makeCSV(),photo:photo}}
   function saveCurrent(){if(!events.length||saved)return;races.unshift(buildRace());store();saved=true}
   function completeRace(){
     if(raceDone||!events.length)return;
@@ -235,7 +272,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     h+='</table>';
     var fb=Z.A.best,fbB=Z.B.best,fk=fb!==null&&(fbB===null||fb<=fbB)?'A':(fbB!==null?'B':null);
     if(fk)h+='<div>Fastest lap of the race: <b>'+fk+' '+fmt(Z[fk].best)+'</b></div>';
+    if(photo)h+='<img src="'+photo+'" style="width:100%;border-radius:10px"><div class="row"><button id="pbtn">Save / share finish photo</button></div>';
     $('resbody').innerHTML=h;
+    if($('pbtn'))$('pbtn').onclick=function(){sharePhoto(photo,'finish_'+stamp(new Date())+'.jpg')};
     $('results').style.display='flex';
   }
   function updateArmUI(){
@@ -251,7 +290,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function newRace(){
     saveCurrent();stopTone();
-    Z.A=fresh();Z.B=fresh();events=[];winner=null;raceDone=false;saved=false;
+    Z.A=fresh();Z.B=fresh();events=[];winner=null;photo=null;raceDone=false;saved=false;
     ['A','B'].forEach(function(k){$('t'+k).textContent='IDLE';render(k)});
     armed=false;updateArmUI();
     leader();$('results').style.display='none';
@@ -270,12 +309,13 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       var r=it.r,d=new Date(r.ts);
       return '<div class="item"><div><b>'+(it.cur?'Current race (in progress)':d.toLocaleString())+'</b></div>'+
         '<div>Winner: '+(r.winner||'--')+' · A '+r.A.n+' laps · B '+r.B.n+' laps'+(r.target?' · race '+r.target:'')+'</div>'+
-        '<div class="row"><button data-a="open" data-id="'+(it.cur?'cur':r.id)+'">Open CSV</button>'+(it.cur?'':'<button data-a="del" data-id="'+r.id+'">Delete</button>')+'</div></div>';
+        '<div class="row"><button data-a="open" data-id="'+(it.cur?'cur':r.id)+'">Open CSV</button>'+(r.photo?'<button data-a="photo" data-id="'+(it.cur?'cur':r.id)+'">Photo</button>':'')+(it.cur?'':'<button data-a="del" data-id="'+r.id+'">Delete</button>')+'</div></div>';
     }).join('');
   }
   $('loglist').addEventListener('click',function(e){
     var b=e.target.closest('button');if(!b)return;
     var id=b.dataset.id,a=b.dataset.a;
+    if(a==='photo'){var pr=id==='cur'?buildRace():races.filter(function(x){return String(x.id)===id})[0];if(pr&&pr.photo)sharePhoto(pr.photo,'finish_'+stamp(new Date(pr.ts))+'.jpg');return}
     if(a==='open'){
       var r=id==='cur'?buildRace():races.filter(function(x){return String(x.id)===id})[0];
       if(r)openCsv(r.csv,'lap-log_'+stamp(new Date(r.ts))+'.csv','Race log');
@@ -328,12 +368,15 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       ['A','B'].forEach(function(k){
         var z=Z[k];if(z.finished)return;
         var r=ratio(g,col,span[k][0],span[k][1]);
+        var m=centroid(g,Math.max(0,col-24),Math.min(W-1,col+24),span[k][0],span[k][1]);
+        if(m.n>=6)z.hist.push({t:now,cx:m.cx});
+        while(z.hist.length&&now-z.hist[0].t>400)z.hist.shift();
         if(ratio(g,cL,span[k][0],span[k][1])>thr)z.tL=now;
         if(ratio(g,cR,span[k][0],span[k][1])>thr)z.tR=now;
         if(!z.active&&r>thr&&now>z.cool&&(z.lastT===null||now-z.lastT>minLap)){
           z.active=true;
           // left-to-right only: motion must reach the line from the left side first
-          var ok=!needDir||((now-z.tL<500)&&!(now-z.tR<500&&z.tR<z.tL));
+          var ok=!needDir||dirOK(z,now);
           if(ok)trigger(k,now);
         }
         else if(z.active&&r<thr*0.5){z.active=false;z.cool=now+300}
