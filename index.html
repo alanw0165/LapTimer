@@ -30,6 +30,9 @@ video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #bar input{flex:1;min-width:0}
 #bar .btns{display:flex;gap:6px;flex:1 1 100%;flex-wrap:wrap}
 #bar .btns button{flex:1}
+#stage.armed .line:not(.hit){background:#4ade80;box-shadow:0 0 6px #4ade80}
+#rot{display:none;position:fixed;inset:0;z-index:40;background:#000;color:#fff;align-items:center;justify-content:center;text-align:center;font-size:20px;padding:24px}
+@media (orientation:landscape){#rot{display:flex}}
 button{font:inherit;padding:8px 12px;border-radius:8px;border:0;background:#fff;color:#000}
 button.pri{background:var(--accent);color:#fff}
 #start{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);text-align:center;padding:24px}
@@ -59,8 +62,8 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
 </div>
 <div id="stage">
   <video id="v" playsinline muted autoplay></video>
-  <div class="zone" id="zA"><div class="tag">A</div><div class="hud"><b id="tA">WAITING</b><span id="sA">Lap 0</span><span id="bA">Best --</span></div><div class="log" id="lA"></div><div class="line" id="nA"></div></div>
-  <div class="zone" id="zB"><div class="tag">B</div><div class="hud"><b id="tB">WAITING</b><span id="sB">Lap 0</span><span id="bB">Best --</span></div><div class="log" id="lB"></div><div class="line" id="nB"></div></div>
+  <div class="zone" id="zA"><div class="tag">A</div><div class="hud"><b id="tA">IDLE</b><span id="sA">Lap 0</span><span id="bA">Best --</span></div><div class="log" id="lA"></div><div class="line" id="nA"></div></div>
+  <div class="zone" id="zB"><div class="tag">B</div><div class="hud"><b id="tB">IDLE</b><span id="sB">Lap 0</span><span id="bB">Best --</span></div><div class="log" id="lB"></div><div class="line" id="nB"></div></div>
   <div id="divider"></div>
   <div id="lead">Fastest lap: --</div>
   <div id="hint" style="display:none;position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.8);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;white-space:nowrap">Tap the screen once to enable sound</div>
@@ -71,7 +74,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <label style="flex:1 1 100%"><input type="checkbox" id="dir" checked style="flex:none">Count left → right passes only</label>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="75"></label>
   <label>Race laps (0 = open)<input id="rl" type="number" min="0" max="999" value="10" style="max-width:70px"></label>
-  <div class="btns"><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button></div>
+  <div class="btns"><button id="arm" class="pri">Arm race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button></div>
 </div>
 
 <div class="ov" id="results">
@@ -90,13 +93,14 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <textarea id="csv" readonly></textarea>
   <div class="row"><button id="copy">Copy</button><button id="share">Share / save</button><button id="dl">Download</button><button id="close">Close</button></div>
 </div>
+<div id="rot">Turn your phone upright.<br>This timer works in portrait only.</div>
 <canvas id="c" hidden></canvas>
 <script>
 (function(){
   var $=function(i){return document.getElementById(i)};
   var video=$('v'),cv=$('c'),ctx=cv.getContext('2d',{willReadFrequently:true});
   var W=160,H=0,prev=null,lastHud=0,DIFF=28,BAND=2,minLap=1000;
-  var Z={},winner=null,events=[],raceDone=false,saved=false,races=[];
+  var Z={},armed=false,winner=null,events=[],raceDone=false,saved=false,races=[];
   var soundOn=true,ac=null,toneTimer=null,TONE={A:600,B:900},WAVE={A:'triangle',B:'square'};
   var KEY='lapTimer.races.v1',curName='lap-log.csv';
 
@@ -234,10 +238,22 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     $('resbody').innerHTML=h;
     $('results').style.display='flex';
   }
+  function updateArmUI(){
+    $('arm').textContent=armed?'Disarm':'Arm race';
+    $('stage').classList.toggle('armed',armed);
+    ['A','B'].forEach(function(k){var z=Z[k];if(z.startT===null&&!z.finished)$('t'+k).textContent=armed?'WAITING':'IDLE'});
+  }
+  function lockPortrait(){
+    try{
+      var el=document.documentElement,go=el.requestFullscreen?el.requestFullscreen():Promise.resolve();
+      Promise.resolve(go).then(function(){return screen.orientation&&screen.orientation.lock?screen.orientation.lock('portrait'):0}).catch(function(){});
+    }catch(e){}
+  }
   function newRace(){
     saveCurrent();stopTone();
     Z.A=fresh();Z.B=fresh();events=[];winner=null;raceDone=false;saved=false;
-    ['A','B'].forEach(function(k){$('t'+k).textContent='WAITING';render(k)});
+    ['A','B'].forEach(function(k){$('t'+k).textContent='IDLE';render(k)});
+    armed=false;updateArmUI();
     leader();$('results').style.display='none';
   }
 
@@ -292,6 +308,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   $('rnew').onclick=newRace;
   $('rclose').onclick=function(){stopTone();$('results').style.display='none'};
   $('endb').onclick=completeRace;
+  $('arm').onclick=function(){if(raceDone||events.length)return;armed=!armed;updateArmUI()};
   $('reset').onclick=newRace;
   $('snd').onclick=function(){soundOn=!soundOn;this.textContent=soundOn?'🔊':'🔇';if(!soundOn)stopTone()};
   $('ml').oninput=function(){minLap=this.value*100;$('mlv').textContent=(minLap/1000).toFixed(1)+'s'};
@@ -303,7 +320,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     if(now-lastHud>50){lastHud=now;['A','B'].forEach(function(k){var z=Z[k];if(z.running)$('t'+k).textContent=fmt(now-z.lastT)})}
     if(!draw())return;
     var g=gray(ctx.getImageData(0,0,W,H));
-    if(prev&&!raceDone){
+    if(prev&&!raceDone&&armed){
       var thr=parseInt($('sens').value,10)/100,half=Math.floor(H/2);
       var col=Math.round((W-1)*parseInt($('lp').value,10)/100);
       var span={A:[0,half],B:[half,H]};
@@ -343,10 +360,10 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       $('msg').textContent=diag('Camera unavailable: '+e.name+' - '+e.message);
     });
   }
-  $('go').onclick=function(){initAudio();startCamera(false)};
+  $('go').onclick=function(){initAudio();lockPortrait();startCamera(false)};
   // Phones only allow sound after a touch: unlock audio on the first tap anywhere
   function unlock(){
-    initAudio();
+    initAudio();lockPortrait();
     if(ac&&ac.state==='running'){
       $('hint').style.display='none';
       document.removeEventListener('pointerdown',unlock,true);
