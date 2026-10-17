@@ -64,6 +64,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <h2 style="margin:0">Lap Timer</h2>
   <p id="msg">Lane A (top) and lane B (bottom). The first crossing starts a lane's stopwatch; each crossing after that records a lap.</p>
   <button id="go">Start camera</button>
+  <button class="flipbtn" style="font-size:15px;padding:10px 20px;background:#fff;color:#000">⟲ Rotate screen 180°</button>
 </div>
 <div id="stage">
   <video id="v" playsinline muted autoplay></video>
@@ -80,7 +81,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <label style="flex:1 1 45%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="75"></label>
   <input type="hidden" id="rl" value="10">
-  <div class="btns"><button id="arm" class="pri">Start race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button><button id="flip">⟲ 180°</button></div>
+  <div class="btns"><button id="arm" class="pri">Start race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button><button class="flipbtn">⟲ 180°</button></div>
 </div>
 
 <div class="ov" id="results">
@@ -107,6 +108,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     <div class="row" style="width:100%"><button data-l="5">5</button><button data-l="10">10</button><button data-l="20">20</button><button data-l="0">Open</button></div>
     <button id="cdgo" class="pri" style="font-size:20px;padding:16px;width:100%">Start countdown</button>
     <button id="cdview" style="width:100%">Preview camera first</button>
+    <button class="flipbtn" style="width:100%">⟲ Rotate screen 180°</button>
   </div>
   <div id="cdown" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;width:100%">
     <div id="cdnum">3</div>
@@ -429,7 +431,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     try{localStorage.setItem(FLIPKEY,flipped?'1':'0')}catch(e){}
   }
   $('lp').oninput=updateLines;
-  $('flip').onclick=function(){flipped=!flipped;applyFlip()};
+  Array.prototype.forEach.call(document.querySelectorAll('.flipbtn'),function(b){b.onclick=function(){flipped=!flipped;applyFlip()}});
   try{flipped=localStorage.getItem(FLIPKEY)==='1'}catch(e){}
   applyFlip();
 
