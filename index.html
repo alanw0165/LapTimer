@@ -33,6 +33,10 @@ video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #stage.armed .line:not(.hit){background:#4ade80;box-shadow:0 0 6px #4ade80}
 #rot{display:none;position:fixed;inset:0;z-index:40;background:#000;color:#fff;align-items:center;justify-content:center;text-align:center;font-size:20px;padding:24px}
 @media (orientation:landscape){#rot{display:flex}}
+#cdnum{font-size:32vmin;font-weight:900;line-height:1;animation:pop .9s ease-out}
+#cdnum.go{color:#fff}
+@keyframes pop{from{transform:scale(1.7);opacity:.2}to{transform:scale(1);opacity:1}}
+button.big{font-size:32px;width:64px;height:64px;padding:0}
 button{font:inherit;padding:8px 12px;border-radius:8px;border:0;background:#fff;color:#000}
 button.pri{background:var(--accent);color:#fff}
 #start{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);text-align:center;padding:24px}
@@ -74,8 +78,8 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <label style="flex:1 1 45%"><input type="checkbox" id="dir" checked style="flex:none">Left → right only</label>
   <label style="flex:1 1 45%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="75"></label>
-  <label>Race laps (0 = open)<input id="rl" type="number" min="0" max="999" value="10" style="max-width:70px"></label>
-  <div class="btns"><button id="arm" class="pri">Arm race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button></div>
+  <input type="hidden" id="rl" value="10">
+  <div class="btns"><button id="arm" class="pri">Start race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button></div>
 </div>
 
 <div class="ov" id="results">
@@ -93,6 +97,20 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <div id="cname" style="font-size:14px"></div>
   <textarea id="csv" readonly></textarea>
   <div class="row"><button id="copy">Copy</button><button id="share">Share / save</button><button id="dl">Download</button><button id="close">Close</button></div>
+</div>
+<div class="ov" id="pre" style="z-index:26;align-items:center;justify-content:center;text-align:center">
+  <div id="preset" style="display:flex;flex-direction:column;gap:14px;align-items:center;width:100%;max-width:360px">
+    <h2>Get ready</h2>
+    <div>Laps in this race</div>
+    <div style="display:flex;align-items:center;gap:16px"><button class="big" id="lm">−</button><b id="plv" style="font-size:64px;min-width:110px">10</b><button class="big" id="lpb">+</button></div>
+    <div class="row" style="width:100%"><button data-l="5">5</button><button data-l="10">10</button><button data-l="20">20</button><button data-l="0">Open</button></div>
+    <button id="cdgo" class="pri" style="font-size:20px;padding:16px;width:100%">Start countdown</button>
+    <button id="cdview" style="width:100%">Preview camera first</button>
+  </div>
+  <div id="cdown" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;width:100%">
+    <div id="cdnum">3</div>
+    <button id="cdcancel">Cancel</button>
+  </div>
 </div>
 <div id="rot">Turn your phone upright.<br>This timer works in portrait only.</div>
 <canvas id="c" hidden></canvas>
@@ -278,7 +296,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     $('results').style.display='flex';
   }
   function updateArmUI(){
-    $('arm').textContent=armed?'Disarm':'Arm race';
+    $('arm').textContent=armed?'Disarm':'Start race';
     $('stage').classList.toggle('armed',armed);
     ['A','B'].forEach(function(k){var z=Z[k];if(z.startT===null&&!z.finished)$('t'+k).textContent=armed?'WAITING':'IDLE'});
   }
@@ -288,9 +306,36 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       Promise.resolve(go).then(function(){return screen.orientation&&screen.orientation.lock?screen.orientation.lock('portrait'):0}).catch(function(){});
     }catch(e){}
   }
+  var cdTimers=[];
+  function stopCd(){cdTimers.forEach(clearTimeout);cdTimers=[]}
+  function setLaps(v){v=Math.max(0,Math.min(999,v||0));$('rl').value=v;$('plv').textContent=v?v:'Open';render('A');render('B')}
+  function openPre(){
+    stopCd();
+    $('plv').textContent=total()?total():'Open';
+    $('pre').style.background='#0b0b0b';
+    $('preset').style.display='flex';$('cdown').style.display='none';$('cdnum').textContent='3';
+    $('pre').style.display='flex';
+  }
+  function closePre(){stopCd();$('pre').style.display='none'}
+  function goTone(){beep(880,0.9,'square');beep(1320,0.9,'triangle')}
+  function startCountdown(){
+    initAudio();lockPortrait();stopCd();
+    $('preset').style.display='none';$('cdown').style.display='flex';
+    ['3','2','1','GO!'].forEach(function(t,i){
+      cdTimers.push(setTimeout(function(){
+        var el=$('cdnum');el.textContent=t;el.className=t==='GO!'?'go':'';
+        el.style.animation='none';void el.offsetWidth;el.style.animation='';
+        $('pre').style.background=t==='GO!'?'#16a34a':'#0b0b0b';
+        if(t==='GO!'){goTone();if(navigator.vibrate)try{navigator.vibrate([200,80,200])}catch(e){}}
+        else{beep(440,0.18);if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}}
+      },i*1000));
+    });
+    // after GO: back to the camera, race is live (first pass in each lane starts its clock)
+    cdTimers.push(setTimeout(function(){closePre();armed=true;updateArmUI()},3900));
+  }
   function newRace(){
     saveCurrent();stopTone();
-    Z.A=fresh();Z.B=fresh();events=[];winner=null;photo=null;raceDone=false;saved=false;
+    Z.A=fresh();Z.B=fresh();events=[];winner=null;photo=null;raceDone=false;saved=false;$('rl').value='10';
     ['A','B'].forEach(function(k){$('t'+k).textContent='IDLE';render(k)});
     armed=false;updateArmUI();
     leader();$('results').style.display='none';
@@ -345,15 +390,20 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     try{var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('csv').value],{type:'text/csv'}));a.download=curName;document.body.appendChild(a);a.click();a.remove()}catch(e){}
   };
   $('rcsv').onclick=function(){var r=buildRace();openCsv(r.csv,'lap-log_'+stamp(new Date(r.ts))+'.csv','This race')};
-  $('rnew').onclick=newRace;
+  $('rnew').onclick=function(){newRace();openPre()};
   $('rclose').onclick=function(){stopTone();$('results').style.display='none'};
   $('endb').onclick=completeRace;
-  $('arm').onclick=function(){if(raceDone||events.length)return;armed=!armed;updateArmUI()};
-  $('reset').onclick=newRace;
+  $('arm').onclick=function(){if(raceDone||events.length)return;if(armed){armed=false;updateArmUI()}else openPre()};
+  $('lm').onclick=function(){setLaps(total()-1)};
+  $('lpb').onclick=function(){setLaps(total()+1)};
+  $('preset').addEventListener('click',function(e){var b=e.target.closest('button[data-l]');if(b)setLaps(parseInt(b.dataset.l,10))});
+  $('cdgo').onclick=startCountdown;
+  $('cdview').onclick=closePre;
+  $('cdcancel').onclick=openPre;
+  $('reset').onclick=function(){newRace();openPre()};
   $('snd').onclick=function(){soundOn=!soundOn;this.textContent=soundOn?'🔊':'🔇';if(!soundOn)stopTone()};
   $('ml').oninput=function(){minLap=this.value*100;$('mlv').textContent=(minLap/1000).toFixed(1)+'s'};
   $('lp').oninput=function(){var v=this.value+'%';$('nA').style.left=v;$('nB').style.left=v};
-  $('rl').oninput=function(){render('A');render('B')};
 
   function loop(now){
     requestAnimationFrame(loop);
@@ -395,7 +445,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     }
     navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})
     .then(function(s){
-      started=true;video.srcObject=s;$('start').style.display='none';setup();requestAnimationFrame(loop);
+      started=true;video.srcObject=s;$('start').style.display='none';setup();requestAnimationFrame(loop);openPre();
       if(auto&&(!ac||ac.state!=='running'))$('hint').style.display='block';
     })
     .catch(function(e){
