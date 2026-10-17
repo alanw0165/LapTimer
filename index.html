@@ -327,7 +327,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     $('pre').style.display='flex';
   }
   function closePre(){stopCd();$('pre').style.display='none'}
-  function goTone(){beep(880,0.9,'square');beep(1320,0.9,'triangle')}
+  function goTone(){beep(1200,1.4,'square');beep(1800,1.4,'triangle')}
   function startCountdown(){
     initAudio();lockPortrait();stopCd();
     $('preset').style.display='none';$('cdown').style.display='flex';
@@ -337,11 +337,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
         el.style.animation='none';void el.offsetWidth;el.style.animation='';
         $('pre').style.background=t==='GO!'?'#16a34a':'#0b0b0b';
         if(t==='GO!'){goTone();if(navigator.vibrate)try{navigator.vibrate([200,80,200])}catch(e){}}
-        else{beep(440,0.18);if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}}
+        else{beep(1000,0.2);if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}}
       },i*1000));
     });
     // after GO: back to the camera, race is live (first pass in each lane starts its clock)
-    cdTimers.push(setTimeout(function(){closePre();saveLaps(total());armed=true;updateArmUI()},3900));
+    cdTimers.push(setTimeout(function(){closePre();saveLaps(total());armed=true;updateArmUI()},4300));
   }
   function newRace(){
     saveCurrent();stopTone();
