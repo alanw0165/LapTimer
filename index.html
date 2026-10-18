@@ -71,7 +71,6 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <h2 style="margin:0">Lap Timer</h2>
   <p id="msg">Lane A (left) and lane B (right). The first crossing starts a lane's stopwatch; each crossing after that records a lap.</p>
   <button id="go">Start camera</button>
-  <button class="flipbtn" style="font-size:15px;padding:10px 20px;background:#fff;color:#000">⟲ Rotate screen 180°</button>
 </div>
 <div id="stage">
   <video id="v" playsinline muted autoplay></video>
@@ -84,12 +83,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
 <div id="bar">
   <label>Sensitivity<input id="sens" type="range" min="1" max="60" value="12"></label>
   <label>Min lap <span id="mlv">1.0s</span><input id="ml" type="range" min="3" max="60" value="10"></label>
-  <label style="flex:1 1 30%"><input type="checkbox" id="dir" checked style="flex:none">One way only</label>
-  <label style="flex:1 1 30%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
+  <label style="flex:1 1 45%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
   <button id="trav" style="flex:1 1 25%;padding:6px 4px;font-size:12px">Cars ↑</button>
-  <label>Line position<input id="lp" type="range" min="10" max="90" value="75"></label>
+  <label>Line position<input id="lp" type="range" min="10" max="90" value="25"></label>
   <input type="hidden" id="rl" value="10">
-  <div class="btns"><button id="arm" class="pri">Start race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button><button class="flipbtn">⟲ 180°</button></div>
+  <div class="btns"><button id="arm" class="pri">Start race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button></div>
 </div>
 
 <div class="ov" id="results">
@@ -116,7 +114,6 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     <div class="row" style="width:100%"><button data-l="5">5</button><button data-l="10">10</button><button data-l="20">20</button><button data-l="0">Open</button></div>
     <button id="cdgo" class="pri" style="font-size:20px;padding:16px;width:100%">Start countdown</button>
     <button id="cdview" style="width:100%">Preview camera first</button>
-    <button class="flipbtn" style="width:100%">⟲ Rotate screen 180°</button>
   </div>
   <div id="cdown" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;width:100%">
     <div id="cdnum">3</div>
@@ -451,8 +448,6 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   try{travelDown=localStorage.getItem(TRAVKEY)==='d'}catch(e){}
   applyTravel();
   $('lp').oninput=updateLines;
-  Array.prototype.forEach.call(document.querySelectorAll('.flipbtn'),function(b){b.onclick=function(){flipped=!flipped;applyFlip()}});
-  try{flipped=localStorage.getItem(FLIPKEY)==='1'}catch(e){}
   applyFlip();
 
   function loop(now){
@@ -464,7 +459,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       var thr=parseInt($('sens').value,10)/100,halfW=Math.floor(W/2);
       var row=Math.round((H-1)*parseInt($('lp').value,10)/100);
       var span={A:[0,halfW],B:[halfW,W]};
-      var rU=Math.max(BAND,row-8),rD=Math.min(H-1-BAND,row+8),cr0=Math.max(0,row-24),cr1=Math.min(H-1,row+24),needDir=$('dir').checked;
+      var rU=Math.max(BAND,row-8),rD=Math.min(H-1-BAND,row+8),cr0=Math.max(0,row-24),cr1=Math.min(H-1,row+24),needDir=true;
       ['A','B'].forEach(function(k){
         var z=Z[k];if(z.finished)return;
         var r=ratio(g,row,span[k][0],span[k][1]);
