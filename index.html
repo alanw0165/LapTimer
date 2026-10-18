@@ -49,6 +49,13 @@ button.pri{background:var(--accent);color:#fff}
 .ov textarea{flex:1;min-height:200px;width:100%;font:12px ui-monospace,monospace;background:#fff;color:#000;border-radius:8px;border:0;padding:8px}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .row button{flex:1}
+.flags{display:flex;align-items:center;justify-content:space-between;padding:0 4px}
+.flagu{display:flex;align-items:flex-start}
+.flagu.r{transform:scaleX(-1)}
+.pole{width:5px;height:100px;background:#9ca3af;border-radius:3px}
+.cloth{display:flex;height:72px;margin-top:4px}
+.cloth i{display:block;width:12px;height:72px;background:conic-gradient(#000 25%,#fff 0 50%,#000 0 75%,#fff 0) 0 0/24px 24px;animation:ripple .9s ease-in-out infinite alternate}
+@keyframes ripple{from{transform:translateY(-7px)}to{transform:translateY(7px)}}
 .win{border-radius:14px;padding:16px;text-align:center;animation:flash 1s ease-in-out infinite alternate}
 @keyframes flash{from{background:#facc15;color:#000}to{background:#e11d48;color:#fff}}
 .win .big{font-size:42px;font-weight:900}
@@ -79,7 +86,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <label>Min lap <span id="mlv">1.0s</span><input id="ml" type="range" min="3" max="60" value="10"></label>
   <label style="flex:1 1 30%"><input type="checkbox" id="dir" checked style="flex:none">One way only</label>
   <label style="flex:1 1 30%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
-  <button id="trav" style="flex:1 1 25%;padding:6px 4px;font-size:12px">Cars ↓</button>
+  <button id="trav" style="flex:1 1 25%;padding:6px 4px;font-size:12px">Cars ↑</button>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="75"></label>
   <input type="hidden" id="rl" value="10">
   <div class="btns"><button id="arm" class="pri">Start race</button><button id="logsb">Logs</button><button id="endb">End race</button><button id="reset">New race</button><button id="snd">🔊</button><button class="flipbtn">⟲ 180°</button></div>
@@ -123,7 +130,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   var $=function(i){return document.getElementById(i)};
   var video=$('v'),cv=$('c'),ctx=cv.getContext('2d',{willReadFrequently:true});
   var W=160,H=0,prev=null,lastHud=0,DIFF=28,BAND=2,minLap=1000;
-  var Z={},armed=false,flipped=false,travelDown=true,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
+  var Z={},armed=false,flipped=false,travelDown=false,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
   var soundOn=true,ac=null,toneTimer=null,TONE={A:600,B:900},WAVE={A:'triangle',B:'square'};
   var KEY='lapTimer.races.v1',curName='lap-log.csv';
 
@@ -298,8 +305,13 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     if(!winner)winner=pickWinner();
     saveCurrent();leader();showResults();finalTone();
   }
+  function flagHTML(right){
+    var c='';
+    for(var i=0;i<8;i++)c+='<i style="background-position:-'+(12*i)+'px 0;animation-delay:'+(i*0.1)+'s"></i>';
+    return '<div class="flagu'+(right?' r':'')+'"><div class="pole"></div><div class="cloth">'+c+'</div></div>';
+  }
   function showResults(){
-    var h='';
+    var h='<div class="flags">'+flagHTML(false)+'<div style="font-weight:800;letter-spacing:3px;font-size:18px">FINISH</div>'+flagHTML(true)+'</div>';
     if(winner){
       var s=laneStats(winner);
       h+='<div class="win"><div class="big">'+winner+' WINS</div><div class="tm">'+fmt(s.total)+'</div><div>Best lap '+fmt(s.best)+' · '+s.n+' laps</div></div>';
@@ -433,10 +445,10 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     updateLines();prev=null;
     try{localStorage.setItem(FLIPKEY,flipped?'1':'0')}catch(e){}
   }
-  var TRAVKEY='lapTimer.travel.v1';
+  var TRAVKEY='lapTimer.travel.v2';
   function applyTravel(){$('trav').textContent=travelDown?'Cars ↓':'Cars ↑';try{localStorage.setItem(TRAVKEY,travelDown?'d':'u')}catch(e){}}
   $('trav').onclick=function(){travelDown=!travelDown;applyTravel()};
-  try{travelDown=localStorage.getItem(TRAVKEY)!=='u'}catch(e){}
+  try{travelDown=localStorage.getItem(TRAVKEY)==='d'}catch(e){}
   applyTravel();
   $('lp').oninput=updateLines;
   Array.prototype.forEach.call(document.querySelectorAll('.flipbtn'),function(b){b.onclick=function(){flipped=!flipped;applyFlip()}});
