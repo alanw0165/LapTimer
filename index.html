@@ -10,19 +10,30 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000;--fg:#f5f5f5}}
 :root[data-theme="dark"]{--bg:#000;--fg:#f5f5f5}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,sans-serif;overflow:hidden;display:flex;flex-direction:column}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,sans-serif;overflow:hidden;display:flex;flex-direction:column;position:relative}
 #stage{position:relative;flex:1;min-height:0;background:#000;overflow:hidden}
 video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .zone{position:absolute;top:0;bottom:0;width:50%;color:#fff}
 #zA{left:0}#zB{left:50%}
 #divider{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#fff;z-index:3}
-.tag{position:absolute;top:6px;left:8px;font-size:26px;font-weight:800;text-shadow:0 1px 4px #000}
+.tag{display:none;position:absolute;top:6px;left:8px;font-size:26px;font-weight:800;text-shadow:0 1px 4px #000}
 .line{position:absolute;left:0;right:0;top:75%;height:3px;margin-top:-1px;background:var(--line);box-shadow:0 0 6px var(--line)}
 .line.hit{background:var(--accent);box-shadow:0 0 14px var(--accent)}
 .hud{position:absolute;top:38px;left:8px;right:4px;text-align:left;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000}
 .hud b{font-size:26px;display:block;line-height:1.1}
 .hud span{font-size:12px;display:block}
 .best{color:var(--gold);font-weight:700}
+#top{position:absolute;top:0;left:0;right:0;z-index:5;height:150px;display:flex;background:rgba(0,0,0,.4);color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000;pointer-events:none}
+.pen{color:#f87171;font-weight:700}
+.pane{flex:1;min-width:0;padding:4px 8px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.pane+.pane{border-left:2px solid #fff}
+.ph{display:flex;align-items:baseline;gap:6px}
+.pt{font-size:30px;font-weight:900}
+.pl{font-size:13px;opacity:.8}
+.pc{font-size:54px;line-height:1;font-weight:900;margin-left:auto}
+.ptm{font-size:26px;line-height:1.1;white-space:nowrap}
+.pd{display:flex;flex-direction:column;font-size:14px;line-height:1.25}
+#pA .pt{color:#22d3ee}#pB .pt{color:#fb923c}
 .log{position:absolute;left:8px;bottom:8px;font-size:12px;line-height:1.35;text-shadow:0 1px 3px #000;font-variant-numeric:tabular-nums}
 #lead{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;background:rgba(0,0,0,.75);color:var(--gold);font-weight:700;font-size:12px;padding:5px 12px;border-radius:14px;max-width:90%;text-align:center}
 #bar{flex:none;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 12px;background:#111;color:#fff;font-size:12px}
@@ -34,7 +45,7 @@ body.flip{transform:rotate(180deg)}
 #stage.armed .line:not(.hit){background:#4ade80;box-shadow:0 0 6px #4ade80}
 #rot{display:none;position:fixed;inset:0;z-index:40;background:#000;color:#fff;align-items:center;justify-content:center;text-align:center;font-size:20px;padding:24px}
 @media (orientation:landscape){#rot{display:flex}}
-#cdnum{font-size:32vmin;font-weight:900;line-height:1;animation:pop .9s ease-out}
+#cdnum{text-shadow:0 4px 24px rgba(0,0,0,.6);font-size:32vmin;font-weight:900;line-height:1;animation:pop .9s ease-out}
 #cdnum.go{color:#fff}
 @keyframes pop{from{transform:scale(1.7);opacity:.2}to{transform:scale(1);opacity:1}}
 button.big{font-size:32px;width:64px;height:64px;padding:0}
@@ -60,7 +71,7 @@ button.pri{background:var(--accent);color:#fff}
 @keyframes flash{from{background:#facc15;color:#000}to{background:#e11d48;color:#fff}}
 .win .big{font-size:42px;font-weight:900}
 .win .tm{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}
-table.res{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+table.res{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
 table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px solid #333}
 .item{background:#1a1a1a;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
 .item .row button{padding:6px 8px}
@@ -72,13 +83,17 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <p id="msg">Lane A (left) and lane B (right). The first crossing starts a lane's stopwatch; each crossing after that records a lap.</p>
   <button id="go">Start camera</button>
 </div>
+<div id="top">
+  <div class="pane" id="pA"><div class="ph"><span class="pt">A</span><span class="pl">LAP</span><b class="pc" id="cA">0</b></div><b class="ptm" id="tA">IDLE</b><div class="pd"><span id="sA">Last --</span><span id="bA">Best --</span><span id="pnA" class="pen"></span></div><div id="lA" hidden></div></div>
+  <div class="pane" id="pB"><div class="ph"><span class="pt">B</span><span class="pl">LAP</span><b class="pc" id="cB">0</b></div><b class="ptm" id="tB">IDLE</b><div class="pd"><span id="sB">Last --</span><span id="bB">Best --</span><span id="pnB" class="pen"></span></div><div id="lB" hidden></div></div>
+</div>
 <div id="stage">
   <video id="v" playsinline muted autoplay></video>
-  <div class="zone" id="zA"><div class="tag">A</div><div class="hud"><b id="tA">IDLE</b><span id="sA">Lap 0</span><span id="bA">Best --</span></div><div class="log" id="lA"></div><div class="line" id="nA"></div></div>
-  <div class="zone" id="zB"><div class="tag">B</div><div class="hud"><b id="tB">IDLE</b><span id="sB">Lap 0</span><span id="bB">Best --</span></div><div class="log" id="lB"></div><div class="line" id="nB"></div></div>
+  <div class="zone" id="zA"><div class="tag">A</div><div class="line" id="nA"></div></div>
+  <div class="zone" id="zB"><div class="tag">B</div><div class="line" id="nB"></div></div>
   <div id="divider"></div>
   <div id="lead">Fastest lap: --</div>
-  <div id="hint" style="display:none;position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.8);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;white-space:nowrap">Tap the screen once to enable sound</div>
+  <div id="hint" style="display:none;position:absolute;left:50%;top:158px;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.8);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;white-space:nowrap">Tap the screen once to enable sound</div>
 </div>
 <div id="bar">
   <label>Sensitivity<input id="sens" type="range" min="1" max="60" value="12"></label>
@@ -112,6 +127,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     <div>Laps in this race</div>
     <div style="display:flex;align-items:center;gap:16px"><button class="big" id="lm">−</button><b id="plv" style="font-size:64px;min-width:110px">10</b><button class="big" id="lpb">+</button></div>
     <div class="row" style="width:100%"><button data-l="5">5</button><button data-l="10">10</button><button data-l="20">20</button><button data-l="0">Open</button></div>
+    <div>Jump-start penalty (crossing before GO)</div>
+    <input type="hidden" id="pen" value="1">
+    <div style="display:flex;align-items:center;gap:16px"><button class="big" id="pm">−</button><b id="pvv" style="font-size:34px;min-width:120px">+1.0s</b><button class="big" id="pp">+</button></div>
     <button id="cdgo" class="pri" style="font-size:20px;padding:16px;width:100%">Start countdown</button>
     <button id="cdview" style="width:100%">Preview camera first</button>
   </div>
@@ -127,11 +145,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   var $=function(i){return document.getElementById(i)};
   var video=$('v'),cv=$('c'),ctx=cv.getContext('2d',{willReadFrequently:true});
   var W=160,H=0,prev=null,lastHud=0,DIFF=28,BAND=2,minLap=1000;
-  var Z={},armed=false,flipped=false,travelDown=false,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
+  var Z={},armed=false,countdownLive=false,flipped=false,travelDown=false,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
   var soundOn=true,ac=null,toneTimer=null,TONE={A:600,B:900},WAVE={A:'triangle',B:'square'};
   var KEY='lapTimer.races.v1',curName='lap-log.csv';
 
-  function fresh(){return {hist:[],tL:0,tR:0,startT:null,lastT:null,active:false,cool:0,laps:[],best:null,running:false,finished:false,finishMs:null,finishAt:null}}
+  function fresh(){return {penaltyMs:0,jumps:0,hist:[],tL:0,tR:0,startT:null,lastT:null,active:false,cool:0,laps:[],best:null,running:false,finished:false,finishMs:null,finishAt:null}}
   Z.A=fresh();Z.B=fresh();
   function total(){var v=parseInt($('rl').value,10);return isNaN(v)||v<0?0:v}
   function p(n,l){return String(n).padStart(l||2,'0')}
@@ -213,7 +231,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
 
   /* race logic */
-  function laneTotal(k){var z=Z[k];if(z.finishMs!==null)return z.finishMs;if(z.laps.length&&z.startT!==null)return z.lastT-z.startT;return null}
+  function laneTotal(k){var z=Z[k];if(z.finishMs!==null)return z.finishMs;if(z.laps.length&&z.startT!==null)return z.lastT-z.startT+z.penaltyMs;return null}
   function leader(){
     var a=Z.A.best,b=Z.B.best,t='--';
     if(a!==null&&(b===null||a<=b))t='A '+fmt(a);else if(b!==null)t='B '+fmt(b);
@@ -221,7 +239,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function render(k){
     var z=Z[k],T=total();
-    $('s'+k).textContent='Lap '+z.laps.length+(T?' / '+T:'')+(z.laps.length?' · Last '+fmt(z.laps[z.laps.length-1].ms):'');
+    $('c'+k).textContent=z.laps.length+(T?'/'+T:'');
+    $('pn'+k).textContent=z.penaltyMs?'Penalty +'+(z.penaltyMs/1000).toFixed(1)+'s':'';
+    $('s'+k).textContent='Last '+(z.laps.length?fmt(z.laps[z.laps.length-1].ms):'--');
     $('b'+k).innerHTML=z.best!==null?'Best <span class="best" style="display:inline">'+fmt(z.best)+'</span>':'Best --';
     $('l'+k).innerHTML=z.laps.slice(-3).reverse().map(function(l){return '#'+l.n+' '+fmt(l.ms)+(l.ms===z.best?' ★':'')}).join('<br>');
   }
@@ -238,9 +258,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       events.push({lane:k,lap:n,clock:clock(wall),ms:ms,total:now-z.startT});
       var T=total();
       if(T&&n>=T){
-        z.finished=true;z.running=false;z.finishMs=now-z.startT;z.finishAt=now;
-        $('t'+k).textContent='DONE '+fmt(z.finishMs);
-        if(!winner){winner=k;if($('pho').checked)snap(k,z.finishMs)}
+        z.finished=true;z.running=false;z.finishMs=now-z.startT+z.penaltyMs;z.finishAt=now;
+        $('t'+k).textContent='🏁 '+fmt(z.finishMs);
+        if(!winner){winner=k;if($('pho').checked)snap(k,z.finishMs-z.penaltyMs)}
         done=true;
       }
       if(done)finishTone(k);else lapTone(k);
@@ -248,7 +268,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     render(k);leader();
     var ln=$('n'+k);ln.classList.add('hit');setTimeout(function(){ln.classList.remove('hit')},250);
     if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}
-    if(done)setTimeout(completeRace,500);
+    if(done){
+      var other=k==='A'?'B':'A',wait=0;
+      if(!Z[other].finished)wait=Math.max(0,Z[k].penaltyMs-Z[other].penaltyMs);
+      setTimeout(completeRace,500+wait);
+    }
   }
   function pickWinner(){
     var c=['A','B'].filter(function(k){return Z[k].laps.length>0});
@@ -283,13 +307,14 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function laneStats(k){
     var z=Z[k],n=z.laps.length,sum=z.laps.reduce(function(s,l){return s+l.ms},0);
-    return {n:n,total:laneTotal(k),best:z.best,avg:n?sum/n:null,done:z.finishMs!==null};
+    return {n:n,pen:z.penaltyMs,total:laneTotal(k),best:z.best,avg:n?sum/n:null,done:z.finishMs!==null};
   }
   function makeCSV(){
-    var rows=['lane,lap,clock_time,lap_time_s,total_time_s,lane_best'];
+    var rows=['lane,lap,clock_time,lap_time_s,total_time_s,lane_best,penalty_s,final_time_s'];
     events.forEach(function(e){
-      rows.push([e.lane,e.lap===0?'start':e.lap,e.clock,e.ms===null?'':(e.ms/1000).toFixed(3),(e.total/1000).toFixed(3),
-        e.ms!==null&&e.ms===Z[e.lane].best?'yes':''].join(','));
+      rows.push([e.lane,e.lap===0?'start':e.lap,e.clock,e.ms===null?'':(e.ms/1000).toFixed(3),e.pen!==undefined?'':(e.total/1000).toFixed(3),
+        e.ms!==null&&e.ms===Z[e.lane].best?'yes':'',e.pen!==undefined?e.pen.toFixed(1):'',
+        (Z[e.lane].finishMs!==null&&e.lap===Z[e.lane].laps.length&&e.lap!==0)?(Z[e.lane].finishMs/1000).toFixed(3):''].join(','));
     });
     return rows.join('\n');
   }
@@ -299,7 +324,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     if(raceDone||!events.length)return;
     raceDone=true;
     ['A','B'].forEach(function(k){var z=Z[k];if(!z.finished){z.finished=true;z.running=false;if(z.laps.length)$('t'+k).textContent='ENDED'}});
-    if(!winner)winner=pickWinner();
+    var fin=['A','B'].filter(function(k){return Z[k].finishMs!==null});
+    if(fin.length){fin.sort(function(a,b){return Z[a].finishMs-Z[b].finishMs});winner=fin[0]}
+    else if(!winner)winner=pickWinner();
     saveCurrent();leader();showResults();finalTone();
   }
   function flagHTML(right){
@@ -311,12 +338,12 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     var h='<div class="flags">'+flagHTML(false)+'<div style="font-weight:800;letter-spacing:3px;font-size:18px">FINISH</div>'+flagHTML(true)+'</div>';
     if(winner){
       var s=laneStats(winner);
-      h+='<div class="win"><div class="big">'+winner+' WINS</div><div class="tm">'+fmt(s.total)+'</div><div>Best lap '+fmt(s.best)+' · '+s.n+' laps</div></div>';
+      h+='<div class="win"><div class="big">'+winner+' WINS</div><div class="tm">'+fmt(s.total)+'</div><div>Best lap '+fmt(s.best)+' · '+s.n+' laps</div>'+(s.pen?'<div style="font-size:14px">includes +'+(s.pen/1000).toFixed(1)+'s penalty</div>':'')+'</div>';
     }else h+='<div class="win"><div class="big">No laps</div></div>';
-    h+='<table class="res"><tr><th>Lane</th><th>Laps</th><th>Total</th><th>Best</th><th>Avg</th></tr>';
+    h+='<table class="res"><tr><th>Lane</th><th>Laps</th><th>Total</th><th>Best</th><th>Avg</th><th>Pen</th></tr>';
     ['A','B'].forEach(function(k){
       var s=laneStats(k),T=total();
-      h+='<tr><td><b>'+k+'</b></td><td>'+s.n+(T?'/'+T:'')+'</td><td>'+fmt(s.total)+'</td><td>'+fmt(s.best)+'</td><td>'+fmt(s.avg)+'</td></tr>';
+      h+='<tr><td><b>'+k+'</b></td><td>'+s.n+(T?'/'+T:'')+'</td><td>'+fmt(s.total)+'</td><td>'+fmt(s.best)+'</td><td>'+fmt(s.avg)+'</td><td>'+(s.pen?'+'+(s.pen/1000).toFixed(1)+'s':'-')+'</td></tr>';
     });
     h+='</table>';
     var fb=Z.A.best,fbB=Z.B.best,fk=fb!==null&&(fbB===null||fb<=fbB)?'A':(fbB!==null?'B':null);
@@ -337,8 +364,24 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       Promise.resolve(go).then(function(){return screen.orientation&&screen.orientation.lock?screen.orientation.lock('portrait'):0}).catch(function(){});
     }catch(e){}
   }
+  var PENKEY='lapTimer.pen.v1';
+  function penVal(){var v=parseFloat($('pen').value);return isNaN(v)?0:v}
+  function setPen(v){
+    v=Math.max(0,Math.min(30,Math.round(v*2)/2));
+    $('pen').value=v;$('pvv').textContent=v?'+'+v.toFixed(1)+'s':'Off';
+    try{localStorage.setItem(PENKEY,String(v))}catch(e){}
+  }
+  function jumpStart(k,now){
+    var pen=penVal();if(!pen)return;
+    var z=Z[k];z.penaltyMs+=pen*1000;z.jumps++;
+    events.push({lane:k,lap:'false_start',clock:clock(new Date()),ms:null,total:0,pen:pen});
+    $('t'+k).textContent='JUMPED';render(k);
+    var ln=$('n'+k);ln.classList.add('hit');setTimeout(function(){ln.classList.remove('hit')},400);
+    beep(180,0.5,'sawtooth');
+    if(navigator.vibrate)try{navigator.vibrate([100,50,100])}catch(e){}
+  }
   var cdTimers=[];
-  function stopCd(){cdTimers.forEach(clearTimeout);cdTimers=[]}
+  function stopCd(){cdTimers.forEach(clearTimeout);cdTimers=[];countdownLive=false}
   function setLaps(v){v=Math.max(0,Math.min(999,v||0));$('rl').value=v;$('plv').textContent=v?v:'Open';render('A');render('B')}
   function openPre(){
     stopCd();
@@ -350,19 +393,19 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   function closePre(){stopCd();$('pre').style.display='none'}
   function goTone(){beep(2000,1.4,'square');beep(2800,1.4,'triangle')}
   function startCountdown(){
-    initAudio();lockPortrait();stopCd();
+    initAudio();lockPortrait();stopCd();countdownLive=true;
     $('preset').style.display='none';$('cdown').style.display='flex';
     ['3','2','1','GO!'].forEach(function(t,i){
       cdTimers.push(setTimeout(function(){
         var el=$('cdnum');el.textContent=t;el.className=t==='GO!'?'go':'';
         el.style.animation='none';void el.offsetWidth;el.style.animation='';
-        $('pre').style.background=t==='GO!'?'#16a34a':'#0b0b0b';
-        if(t==='GO!'){goTone();if(navigator.vibrate)try{navigator.vibrate([200,80,200])}catch(e){}}
+        $('pre').style.background=t==='GO!'?'rgba(22,163,74,.6)':'rgba(22,163,74,.38)';
+        if(t==='GO!'){countdownLive=false;armed=true;saveLaps(total());updateArmUI();goTone();if(navigator.vibrate)try{navigator.vibrate([200,80,200])}catch(e){}}
         else{beep(1600,0.2);if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}}
       },i*1000));
     });
-    // after GO: back to the camera, race is live (first pass in each lane starts its clock)
-    cdTimers.push(setTimeout(function(){closePre();saveLaps(total());armed=true;updateArmUI()},4300));
+    // detection goes live at GO; the overlay then clears to show the camera (each lane's clock starts on its first pass)
+    cdTimers.push(setTimeout(closePre,4300));
   }
   function newRace(){
     saveCurrent();stopTone();
@@ -425,12 +468,15 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   $('rclose').onclick=function(){stopTone();$('results').style.display='none'};
   $('endb').onclick=completeRace;
   $('arm').onclick=function(){if(raceDone||events.length)return;if(armed){armed=false;updateArmUI()}else openPre()};
+  $('pm').onclick=function(){setPen(penVal()-0.5)};
+  $('pp').onclick=function(){setPen(penVal()+0.5)};
+  (function(){var sp=1;try{var t=localStorage.getItem(PENKEY);if(t!==null)sp=parseFloat(t)}catch(e){}setPen(isNaN(sp)?1:sp)})();
   $('lm').onclick=function(){setLaps(total()-1)};
   $('lpb').onclick=function(){setLaps(total()+1)};
   $('preset').addEventListener('click',function(e){var b=e.target.closest('button[data-l]');if(b)setLaps(parseInt(b.dataset.l,10))});
   $('cdgo').onclick=startCountdown;
   $('cdview').onclick=closePre;
-  $('cdcancel').onclick=openPre;
+  $('cdcancel').onclick=function(){stopCd();armed=false;['A','B'].forEach(function(k){Z[k].penaltyMs=0;Z[k].jumps=0});events=events.filter(function(e){return e.lap!=='false_start'});['A','B'].forEach(render);updateArmUI();openPre()};
   $('reset').onclick=function(){newRace();openPre()};
   $('snd').onclick=function(){soundOn=!soundOn;this.textContent=soundOn?'🔊':'🔇';if(!soundOn)stopTone()};
   $('ml').oninput=function(){minLap=this.value*100;$('mlv').textContent=(minLap/1000).toFixed(1)+'s'};
@@ -455,7 +501,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     if(now-lastHud>50){lastHud=now;['A','B'].forEach(function(k){var z=Z[k];if(z.running)$('t'+k).textContent=fmt(now-z.lastT)})}
     if(!draw())return;
     var g=gray(ctx.getImageData(0,0,W,H));
-    if(prev&&!raceDone&&armed){
+    if(prev&&!raceDone&&(armed||countdownLive)){
       var thr=parseInt($('sens').value,10)/100,halfW=Math.floor(W/2);
       var row=Math.round((H-1)*parseInt($('lp').value,10)/100);
       var span={A:[0,halfW],B:[halfW,W]};
@@ -472,7 +518,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
           z.active=true;
           // one way only: motion must reach the line from the correct side first
           var ok=!needDir||dirOK(z,now);
-          if(ok)trigger(k,now);
+          if(ok){if(armed)trigger(k,now);else jumpStart(k,now)}
         }
         else if(z.active&&r<thr*0.5){z.active=false;z.cool=now+300}
       });
