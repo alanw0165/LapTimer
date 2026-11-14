@@ -98,7 +98,8 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
 <div id="bar">
   <label>Sensitivity<input id="sens" type="range" min="1" max="60" value="12"></label>
   <label>Min lap <span id="mlv">1.0s</span><input id="ml" type="range" min="3" max="60" value="10"></label>
-  <label style="flex:1 1 45%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
+  <label style="flex:1 1 30%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
+  <label style="flex:1 1 30%"><input type="checkbox" id="fs" checked style="flex:none">Fast shutter</label>
   <button id="trav" style="flex:1 1 25%;padding:6px 4px;font-size:12px">Cars ↑</button>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="25"></label>
   <input type="hidden" id="rl" value="10">
@@ -160,9 +161,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   /* storage */
   function load(){try{var s=localStorage.getItem(KEY);races=s?JSON.parse(s):[]}catch(e){races=[]}}
   function store(){
-    var list=races.slice(0,40).map(function(r,i){if(i<12||!r.photo)return r;var c=Object.assign({},r);delete c.photo;return c});
+    var list=races.slice(0,40).map(function(r,i){if(i<6||!r.photo)return r;var c=Object.assign({},r);delete c.photo;return c});
     try{localStorage.setItem(KEY,JSON.stringify(list))}
-    catch(e){try{localStorage.setItem(KEY,JSON.stringify(list.map(function(r,i){if(i<3||!r.photo)return r;var c=Object.assign({},r);delete c.photo;return c})))}catch(_){}}
+    catch(e){try{localStorage.setItem(KEY,JSON.stringify(list.map(function(r,i){if(i<2||!r.photo)return r;var c=Object.assign({},r);delete c.photo;return c})))}catch(_){}}
   }
   load();
   var LAPKEY='lapTimer.lastLaps.v1';
@@ -284,7 +285,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     try{
       var vw=video.videoWidth,vh=video.videoHeight,st=$('stage'),dr=st.clientWidth/st.clientHeight,sx=0,sy=0,sw=vw,sh=vh;
       if(vw/vh>dr){sw=vh*dr;sx=(vw-sw)/2}else{sh=vw/dr;sy=(vh-sh)/2}
-      var c=document.createElement('canvas');c.width=540;c.height=Math.round(540/dr);
+      var c=document.createElement('canvas');c.width=810;c.height=Math.round(810/dr);
       var x=c.getContext('2d');
       if(flipped){x.save();x.translate(c.width,c.height);x.rotate(Math.PI)}
       x.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
@@ -292,10 +293,10 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       var ly=c.height*parseInt($('lp').value,10)/100;
       x.strokeStyle='rgba(34,211,238,.9)';x.lineWidth=2;
       x.beginPath();x.moveTo(0,ly);x.lineTo(c.width,ly);x.moveTo(c.width/2,0);x.lineTo(c.width/2,c.height);x.stroke();
-      x.fillStyle='#000';x.fillRect(0,c.height-34,c.width,34);
-      x.fillStyle='#facc15';x.font='bold 20px system-ui,sans-serif';
-      x.fillText('FINISH  Lane '+k+'  '+fmt(ms)+'  '+clock(new Date()),10,c.height-10);
-      photo=c.toDataURL('image/jpeg',0.7);
+      x.fillStyle='#000';x.fillRect(0,c.height-48,c.width,48);
+      x.fillStyle='#facc15';x.font='bold 28px system-ui,sans-serif';
+      x.fillText('FINISH  Lane '+k+'  '+fmt(ms)+'  '+clock(new Date()),12,c.height-14);
+      photo=c.toDataURL('image/jpeg',0.88);
     }catch(e){photo=null}
   }
   function sharePhoto(url,name){
@@ -490,6 +491,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   var TRAVKEY='lapTimer.travel.v2';
   function applyTravel(){$('trav').textContent=travelDown?'Cars ↓':'Cars ↑';try{localStorage.setItem(TRAVKEY,travelDown?'d':'u')}catch(e){}}
+  $('fs').onchange=tuneCamera;
   $('trav').onclick=function(){travelDown=!travelDown;applyTravel()};
   try{travelDown=localStorage.getItem(TRAVKEY)==='d'}catch(e){}
   applyTravel();
@@ -525,7 +527,21 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     }
     prev=g;
   }
-  var started=false;
+  var started=false,camTrack=null;
+  function tuneCamera(){
+    try{
+      var t=camTrack;if(!t||!t.getCapabilities)return;
+      var c=t.getCapabilities(),adv={};
+      if($('fs').checked){
+        if(c.exposureMode&&c.exposureMode.indexOf('manual')>-1&&c.exposureTime){
+          adv.exposureMode='manual';
+          adv.exposureTime=Math.max(c.exposureTime.min,Math.min(c.exposureTime.max,30));   // about 3 ms
+          if(c.iso)adv.iso=Math.max(c.iso.min,Math.min(c.iso.max,800));
+        }
+      }else if(c.exposureMode&&c.exposureMode.indexOf('continuous')>-1){adv.exposureMode='continuous'}
+      if(Object.keys(adv).length)t.applyConstraints({advanced:[adv]}).catch(function(){});
+    }catch(e){}
+  }
   function startCamera(auto){
     if(started)return;
     function diag(m){return m+' | secure: '+window.isSecureContext+' | framed: '+(window.top!==window)+' | page: '+location.protocol+'//'+(location.host||'(file)');}
@@ -534,9 +550,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       $('msg').textContent=diag('Camera API not available on this page.');
       return;
     }
-    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})
+    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:60}},audio:false})
     .then(function(s){
-      started=true;video.srcObject=s;$('start').style.display='none';setup();requestAnimationFrame(loop);openPre();
+      started=true;video.srcObject=s;camTrack=s.getVideoTracks()[0];tuneCamera();$('start').style.display='none';setup();requestAnimationFrame(loop);openPre();
       if(auto&&(!ac||ac.state!=='running'))$('hint').style.display='block';
     })
     .catch(function(e){
