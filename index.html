@@ -23,16 +23,19 @@ video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .hud b{font-size:26px;display:block;line-height:1.1}
 .hud span{font-size:12px;display:block}
 .best{color:var(--gold);font-weight:700}
-#top{position:absolute;top:0;left:0;right:0;z-index:5;height:150px;display:flex;background:rgba(0,0,0,.4);color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000;pointer-events:none}
+#top{position:absolute;top:0;left:0;right:0;z-index:5;height:166px;display:flex;background:rgba(0,0,0,.4);color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000;pointer-events:none}
 .pen{color:#f87171;font-weight:700}
 .pane{flex:1;min-width:0;padding:4px 8px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
 .pane+.pane{border-left:2px solid #fff}
-.ph{display:flex;align-items:baseline;gap:6px}
-.pt{font-size:30px;font-weight:900}
-.pl{font-size:13px;opacity:.8}
-.pc{font-size:54px;line-height:1;font-weight:900;margin-left:auto}
+.ph{position:relative;display:flex;align-items:baseline}
+.pr{display:flex;align-items:baseline;gap:8px}
+.pt{font-size:26px;font-weight:900}
+.pl{position:absolute;top:2px;right:0;font-size:13px;font-weight:700;opacity:.85}
+.pc{font-size:92px;line-height:.95;font-weight:900;letter-spacing:-2px}
+.pc small{font-size:.38em;font-weight:800;opacity:.9;letter-spacing:0}
 .ptm{font-size:26px;line-height:1.1;white-space:nowrap}
-.pd{display:flex;flex-direction:column;font-size:14px;line-height:1.25}
+.pd{display:flex;flex-wrap:wrap;gap:0 10px;font-size:13px;line-height:1.3}
+.pd .pen{flex-basis:100%}
 #pA .pt{color:#22d3ee}#pB .pt{color:#fb923c}
 .log{position:absolute;left:8px;bottom:8px;font-size:12px;line-height:1.35;text-shadow:0 1px 3px #000;font-variant-numeric:tabular-nums}
 #lead{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;background:rgba(0,0,0,.75);color:var(--gold);font-weight:700;font-size:12px;padding:5px 12px;border-radius:14px;max-width:90%;text-align:center}
@@ -84,8 +87,8 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <button id="go">Start camera</button>
 </div>
 <div id="top">
-  <div class="pane" id="pA"><div class="ph"><span class="pt">A</span><span class="pl">LAP</span><b class="pc" id="cA">0</b></div><b class="ptm" id="tA">IDLE</b><div class="pd"><span id="sA">Last --</span><span id="bA">Best --</span><span id="pnA" class="pen"></span></div><div id="lA" hidden></div></div>
-  <div class="pane" id="pB"><div class="ph"><span class="pt">B</span><span class="pl">LAP</span><b class="pc" id="cB">0</b></div><b class="ptm" id="tB">IDLE</b><div class="pd"><span id="sB">Last --</span><span id="bB">Best --</span><span id="pnB" class="pen"></span></div><div id="lB" hidden></div></div>
+  <div class="pane" id="pA"><div class="ph"><span class="pl">LAP</span><b class="pc" id="cA">0</b></div><div class="pr"><span class="pt">A</span><b class="ptm" id="tA">IDLE</b></div><div class="pd"><span id="sA">Last --</span><span id="bA">Best --</span><span id="pnA" class="pen"></span></div><div id="lA" hidden></div></div>
+  <div class="pane" id="pB"><div class="ph"><span class="pl">LAP</span><b class="pc" id="cB">0</b></div><div class="pr"><span class="pt">B</span><b class="ptm" id="tB">IDLE</b></div><div class="pd"><span id="sB">Last --</span><span id="bB">Best --</span><span id="pnB" class="pen"></span></div><div id="lB" hidden></div></div>
 </div>
 <div id="stage">
   <video id="v" playsinline muted autoplay></video>
@@ -93,7 +96,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <div class="zone" id="zB"><div class="tag">B</div><div class="line" id="nB"></div></div>
   <div id="divider"></div>
   <div id="lead">Fastest lap: --</div>
-  <div id="hint" style="display:none;position:absolute;left:50%;top:158px;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.8);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;white-space:nowrap">Tap the screen once to enable sound</div>
+  <div id="hint" style="display:none;position:absolute;left:50%;top:174px;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.8);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;white-space:nowrap">Tap the screen once to enable sound</div>
 </div>
 <div id="bar">
   <label>Sensitivity<input id="sens" type="range" min="1" max="60" value="12"></label>
@@ -240,7 +243,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function render(k){
     var z=Z[k],T=total();
-    $('c'+k).textContent=z.laps.length+(T?'/'+T:'');
+    $('c'+k).innerHTML=z.laps.length+(T?'<small>/'+T+'</small>':'');
     $('pn'+k).textContent=z.penaltyMs?'Penalty +'+(z.penaltyMs/1000).toFixed(1)+'s':'';
     $('s'+k).textContent='Last '+(z.laps.length?fmt(z.laps[z.laps.length-1].ms):'--');
     $('b'+k).innerHTML=z.best!==null?'Best <span class="best" style="display:inline">'+fmt(z.best)+'</span>':'Best --';
