@@ -102,7 +102,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   <label>Sensitivity<input id="sens" type="range" min="1" max="60" value="12"></label>
   <label>Min lap <span id="mlv">1.0s</span><input id="ml" type="range" min="3" max="60" value="10"></label>
   <label style="flex:1 1 30%"><input type="checkbox" id="pho" checked style="flex:none">Finish photo</label>
-  <label style="flex:1 1 30%"><input type="checkbox" id="fs" checked style="flex:none">Fast shutter</label>
+  <label style="flex:1 1 30%"><input type="checkbox" id="fs" style="flex:none">Fast shutter</label>
   <button id="trav" style="flex:1 1 25%;padding:6px 4px;font-size:12px">Cars ↑</button>
   <label>Line position<input id="lp" type="range" min="10" max="90" value="25"></label>
   <input type="hidden" id="rl" value="10">
@@ -243,7 +243,8 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function render(k){
     var z=Z[k],T=total();
-    $('c'+k).innerHTML=z.laps.length+(T?'<small>/'+T+'</small>':'');
+    var cur=z.startT===null?0:(z.finishMs!==null?z.laps.length:z.laps.length+1);
+    $('c'+k).innerHTML=cur+(T?'<small>/'+T+'</small>':'');
     $('pn'+k).textContent=z.penaltyMs?'Penalty +'+(z.penaltyMs/1000).toFixed(1)+'s':'';
     $('s'+k).textContent='Last '+(z.laps.length?fmt(z.laps[z.laps.length-1].ms):'--');
     $('b'+k).innerHTML=z.best!==null?'Best <span class="best" style="display:inline">'+fmt(z.best)+'</span>':'Best --';
@@ -538,10 +539,13 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
       if($('fs').checked){
         if(c.exposureMode&&c.exposureMode.indexOf('manual')>-1&&c.exposureTime){
           adv.exposureMode='manual';
-          adv.exposureTime=Math.max(c.exposureTime.min,Math.min(c.exposureTime.max,30));   // about 3 ms
-          if(c.iso)adv.iso=Math.max(c.iso.min,Math.min(c.iso.max,800));
+          adv.exposureTime=Math.max(c.exposureTime.min,Math.min(c.exposureTime.max,60));   // about 6 ms
+          if(c.iso)adv.iso=Math.max(c.iso.min,Math.min(c.iso.max,1600));
         }
-      }else if(c.exposureMode&&c.exposureMode.indexOf('continuous')>-1){adv.exposureMode='continuous'}
+      }else{
+        if(c.exposureMode&&c.exposureMode.indexOf('continuous')>-1)adv.exposureMode='continuous';
+        if(c.exposureCompensation&&c.exposureCompensation.max>0)adv.exposureCompensation=c.exposureCompensation.max*0.5;   // lift the picture
+      }
       if(Object.keys(adv).length)t.applyConstraints({advanced:[adv]}).catch(function(){});
     }catch(e){}
   }
