@@ -132,6 +132,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     <div style="display:flex;align-items:center;gap:16px"><button class="big" id="lm">−</button><b id="plv" style="font-size:64px;min-width:110px">10</b><button class="big" id="lpb">+</button></div>
     <div class="row" style="width:100%"><button data-l="5">5</button><button data-l="10">10</button><button data-l="20">20</button><button data-l="0">Open</button></div>
     <div>Jump-start penalty (crossing before GO)</div>
+    <button id="gs" style="width:100%"></button>
     <input type="hidden" id="pen" value="1">
     <div style="display:flex;align-items:center;gap:16px"><button class="big" id="pm">−</button><b id="pvv" style="font-size:34px;min-width:120px">+1.0s</b><button class="big" id="pp">+</button></div>
     <button id="cdgo" class="pri" style="font-size:20px;padding:16px;width:100%">Start countdown</button>
@@ -149,11 +150,11 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   var $=function(i){return document.getElementById(i)};
   var video=$('v'),cv=$('c'),ctx=cv.getContext('2d',{willReadFrequently:true});
   var W=160,H=0,prev=null,lastHud=0,DIFF=28,BAND=2,minLap=1000;
-  var Z={},armed=false,countdownLive=false,flipped=false,travelDown=false,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
+  var Z={},armed=false,gridStart=true,countdownLive=false,flipped=false,travelDown=false,winner=null,photo=null,events=[],raceDone=false,saved=false,races=[];
   var soundOn=true,ac=null,toneTimer=null,TONE={A:600,B:900},WAVE={A:'triangle',B:'square'};
   var KEY='lapTimer.races.v1',curName='lap-log.csv';
 
-  function fresh(){return {penaltyMs:0,jumps:0,hist:[],tL:0,tR:0,startT:null,lastT:null,active:false,cool:0,laps:[],best:null,running:false,finished:false,finishMs:null,finishAt:null}}
+  function fresh(){return {count:0,penaltyMs:0,jumps:0,hist:[],tL:0,tR:0,startT:null,lastT:null,active:false,cool:0,laps:[],best:null,running:false,finished:false,finishMs:null,finishAt:null}}
   Z.A=fresh();Z.B=fresh();
   function total(){var v=parseInt($('rl').value,10);return isNaN(v)||v<0?0:v}
   function p(n,l){return String(n).padStart(l||2,'0')}
@@ -235,7 +236,8 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
 
   /* race logic */
-  function laneTotal(k){var z=Z[k];if(z.finishMs!==null)return z.finishMs;if(z.laps.length&&z.startT!==null)return z.lastT-z.startT+z.penaltyMs;return null}
+  function completedOf(z){return gridStart?Math.max(0,z.count-1):z.count}   // laps completed
+  function laneTotal(k){var z=Z[k];if(z.finishMs!==null)return z.finishMs;if(z.count&&z.startT!==null)return z.lastT-z.startT+z.penaltyMs;return null}
   function leader(){
     var a=Z.A.best,b=Z.B.best,t='--';
     if(a!==null&&(b===null||a<=b))t='A '+fmt(a);else if(b!==null)t='B '+fmt(b);
@@ -243,7 +245,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function render(k){
     var z=Z[k],T=total();
-    var cur=z.startT===null?0:(z.finishMs!==null?z.laps.length:z.laps.length+1);
+    var comp=completedOf(z),live=armed||z.count>0||raceDone,cur=gridStart?(live?Math.min(comp+1,T||Infinity):0):z.count;
     $('c'+k).innerHTML=cur+(T?'<small>/'+T+'</small>':'');
     $('pn'+k).textContent=z.penaltyMs?'Penalty +'+(z.penaltyMs/1000).toFixed(1)+'s':'';
     $('s'+k).textContent='Last '+(z.laps.length?fmt(z.laps[z.laps.length-1].ms):'--');
@@ -252,24 +254,24 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   }
   function trigger(k,now){
     var z=Z[k],wall=new Date(),done=false;
-    if(z.startT===null){
+    z.count++;
+    var n=z.count,T=total(),comp=completedOf(z);
+    if(n===1){
       z.startT=now;z.lastT=now;z.running=true;
-      events.push({lane:k,lap:0,clock:clock(wall),ms:null,total:0});
-      lapTone(k);
+      events.push({lane:k,lap:gridStart?0:1,clock:clock(wall),ms:null,total:0});
     }else{
-      var ms=now-z.lastT,n=z.laps.length+1;
-      z.lastT=now;z.laps.push({n:n,ms:ms});
+      var ms=now-z.lastT;
+      z.lastT=now;z.laps.push({n:comp,ms:ms});
       if(z.best===null||ms<z.best)z.best=ms;
-      events.push({lane:k,lap:n,clock:clock(wall),ms:ms,total:now-z.startT});
-      var T=total();
-      if(T&&n>=T){
-        z.finished=true;z.running=false;z.finishMs=now-z.startT+z.penaltyMs;z.finishAt=now;
-        $('t'+k).textContent='🏁 '+fmt(z.finishMs);
-        if(!winner){winner=k;if($('pho').checked)snap(k,z.finishMs-z.penaltyMs)}
-        done=true;
-      }
-      if(done)finishTone(k);else lapTone(k);
+      events.push({lane:k,lap:comp,clock:clock(wall),ms:ms,total:now-z.startT});
     }
+    if(T&&comp>=T){          // race ends when the leader completes the race laps
+      z.finished=true;z.running=false;z.finishMs=now-z.startT+z.penaltyMs;z.finishAt=now;
+      $('t'+k).textContent='🏁 '+fmt(z.finishMs);
+      if(!winner){winner=k;if($('pho').checked)snap(k,z.finishMs-z.penaltyMs)}
+      done=true;
+    }
+    if(done)finishTone(k);else lapTone(k);
     render(k);leader();
     var ln=$('n'+k);ln.classList.add('hit');setTimeout(function(){ln.classList.remove('hit')},250);
     if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}
@@ -280,9 +282,9 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     }
   }
   function pickWinner(){
-    var c=['A','B'].filter(function(k){return Z[k].laps.length>0});
+    var c=['A','B'].filter(function(k){return completedOf(Z[k])>0});
     if(!c.length)return null;
-    c.sort(function(a,b){return Z[b].laps.length-Z[a].laps.length||Z[a].lastT-Z[b].lastT});
+    c.sort(function(a,b){return completedOf(Z[b])-completedOf(Z[a])||Z[a].lastT-Z[b].lastT});
     return c[0];
   }
   function snap(k,ms){
@@ -311,15 +313,15 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
     }).catch(function(){});
   }
   function laneStats(k){
-    var z=Z[k],n=z.laps.length,sum=z.laps.reduce(function(s,l){return s+l.ms},0);
-    return {n:n,pen:z.penaltyMs,total:laneTotal(k),best:z.best,avg:n?sum/n:null,done:z.finishMs!==null};
+    var z=Z[k],m=z.laps.length,sum=z.laps.reduce(function(s,l){return s+l.ms},0);
+    return {n:completedOf(z),pen:z.penaltyMs,total:laneTotal(k),best:z.best,avg:m?sum/m:null,done:z.finishMs!==null};
   }
   function makeCSV(){
     var rows=['lane,lap,clock_time,lap_time_s,total_time_s,lane_best,penalty_s,final_time_s'];
     events.forEach(function(e){
       rows.push([e.lane,e.lap===0?'start':e.lap,e.clock,e.ms===null?'':(e.ms/1000).toFixed(3),e.pen!==undefined?'':(e.total/1000).toFixed(3),
         e.ms!==null&&e.ms===Z[e.lane].best?'yes':'',e.pen!==undefined?e.pen.toFixed(1):'',
-        (Z[e.lane].finishMs!==null&&e.lap===Z[e.lane].laps.length&&e.lap!==0)?(Z[e.lane].finishMs/1000).toFixed(3):''].join(','));
+        (Z[e.lane].finishMs!==null&&e.ms!==null&&e.lap===completedOf(Z[e.lane]))?(Z[e.lane].finishMs/1000).toFixed(3):''].join(','));
     });
     return rows.join('\n');
   }
@@ -328,7 +330,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   function completeRace(){
     if(raceDone||!events.length)return;
     raceDone=true;
-    ['A','B'].forEach(function(k){var z=Z[k];if(!z.finished){z.finished=true;z.running=false;if(z.laps.length)$('t'+k).textContent='ENDED'}});
+    ['A','B'].forEach(function(k){var z=Z[k];if(!z.finished){z.finished=true;z.running=false;if(z.count)$('t'+k).textContent='ENDED'}});
     var fin=['A','B'].filter(function(k){return Z[k].finishMs!==null});
     if(fin.length){fin.sort(function(a,b){return Z[a].finishMs-Z[b].finishMs});winner=fin[0]}
     else if(!winner)winner=pickWinner();
@@ -361,6 +363,7 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   function updateArmUI(){
     $('arm').textContent=armed?'Disarm':'Start race';
     $('stage').classList.toggle('armed',armed);
+    ['A','B'].forEach(function(k){render(k)});
     ['A','B'].forEach(function(k){var z=Z[k];if(z.startT===null&&!z.finished)$('t'+k).textContent=armed?'WAITING':'IDLE'});
   }
   function lockPortrait(){
@@ -473,6 +476,15 @@ table.res th,table.res td{text-align:left;padding:7px 4px;border-bottom:1px soli
   $('rclose').onclick=function(){stopTone();$('results').style.display='none'};
   $('endb').onclick=completeRace;
   $('arm').onclick=function(){if(raceDone||events.length)return;if(armed){armed=false;updateArmUI()}else openPre()};
+  var STARTKEY='lapTimer.start.v1';
+  function applyStart(){
+    $('gs').textContent=gridStart?'Start: F1 grid (launch pass is not a lap)':'Start: first pass counts as lap 1';
+    try{localStorage.setItem(STARTKEY,gridStart?'g':'n')}catch(e){}
+    ['A','B'].forEach(function(k){render(k)});
+  }
+  $('gs').onclick=function(){gridStart=!gridStart;applyStart()};
+  try{gridStart=localStorage.getItem(STARTKEY)!=='n'}catch(e){}
+  applyStart();
   $('pm').onclick=function(){setPen(penVal()-0.5)};
   $('pp').onclick=function(){setPen(penVal()+0.5)};
   (function(){var sp=1;try{var t=localStorage.getItem(PENKEY);if(t!==null)sp=parseFloat(t)}catch(e){}setPen(isNaN(sp)?1:sp)})();
